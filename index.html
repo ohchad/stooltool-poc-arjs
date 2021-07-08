@@ -17,8 +17,37 @@
     <a-scene vr-mode-ui="enabled: false;" renderer="logarithmicDepthBuffer: true;" embedded
         arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
 
-        <a-marker preset='custom' type='pattern' url='./stool.tools.marker.patt' />
+        <a-marker preset='custom' type='pattern' url='https://ohchad.github.io/ar-stool-poc/stool.tools.marker.patt' />
 
         <a-entity camera></a-entity>
     </a-scene>
 </body>
+<script>
+
+    // import this on your HTML
+    window.addEventListener('load', () => {
+        const camera = document.querySelector('[camera]');
+        const marker = document.querySelector('a-marker');
+        let check;
+
+        marker.addEventListener('markerFound', () => {
+            let cameraPosition = camera.object3D.position;
+            let markerPosition = marker.object3D.position;
+            let distance = cameraPosition.distanceTo(markerPosition)
+
+            check = setInterval(() => {
+                cameraPosition = camera.object3D.position;
+                markerPosition = marker.object3D.position;
+                distance = cameraPosition.distanceTo(markerPosition)
+
+                // do what you want with the distance:
+                console.log({ distance, cameraPosition, markerPosition });
+            }, 100);
+        });
+
+        marker.addEventListener('markerLost', () => {
+            clearInterval(check);
+        })
+    })
+
+</script>
