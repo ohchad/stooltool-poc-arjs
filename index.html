@@ -1,17 +1,24 @@
-<script
-    src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1c2407b26c61958baa93967b5412487cd94b290b/dist/aframe-master.min.js"></script>
-<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+<html>
 
-<script>
-    AFRAME.registerComponent('markerhandler', {
-        init: function () {
-            this.el.sceneEl.addEventListener('markerFound', (event) => {
-                // redirect to custom URL e.g. google.com
-                console.log(event)
-            })
-        }
-    });
-</script>
+<head>
+    <script
+        src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1c2407b26c61958baa93967b5412487cd94b290b/dist/aframe-master.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+
+    <script>
+        AFRAME.registerComponent('markerhandler', {
+            init: function () {
+                this.el.sceneEl.addEventListener('markerFound', (event) => {
+                    // redirect to custom URL e.g. google.com
+                    console.log(event)
+                })
+            }
+        });
+    </script>
+
+
+    <script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
+</head>
 
 <body style="margin : 0px; overflow: hidden;">
     <a-scene vr-mode-ui="enabled: false;" renderer="logarithmicDepthBuffer: true;" embedded
@@ -42,7 +49,7 @@
 
                 // do what you want with the distance:
                 console.log({ distance, ...markerPosition });
-            }, 100);
+            }, 1000);
         });
 
         marker.addEventListener('markerLost', () => {
@@ -51,3 +58,5 @@
     })
 
 </script>
+
+</html>
