@@ -4,19 +4,6 @@
     <script
         src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1c2407b26c61958baa93967b5412487cd94b290b/dist/aframe-master.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
-
-    <script>
-        AFRAME.registerComponent('markerhandler', {
-            init: function () {
-                this.el.sceneEl.addEventListener('markerFound', (event) => {
-                    // redirect to custom URL e.g. google.com
-                    console.log(event)
-                })
-            }
-        });
-    </script>
-
-
     <script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
 </head>
 
@@ -31,31 +18,48 @@
 </body>
 <script>
 
-    // import this on your HTML
+    // mirror the video, once permission granted and rendered
+    const timer = setInterval(() => {
+        const vid = document.querySelector('video#arjs-video')
+        if (vid) {
+            vid.style.transform = 'scale(-1,1)'
+            clearInterval(timer)
+        }
+    }, 500)
+
+    AFRAME.registerComponent('markerhandler', {
+        init: function () {
+            // this is required, but only to ensure markerFound events are thrown
+        }
+    });
+
+    // the following won't work if in the ^^^ init function above :(
+    // and no markerFound events will be thrown unless AFRAME.registerComponent is called at least once
+
     window.addEventListener('load', () => {
         const camera = document.querySelector('[camera]');
         const marker = document.querySelector('a-marker');
-        let check;
+        let rotation = { ...marker.object3D.rotation }
+        let position = { ...marker.object3D.position }
+        let distance = camera.object3D.position.distanceTo(position)
+        let old
 
+        // capture position and rotation
         marker.addEventListener('markerFound', () => {
-            let cameraPosition = camera.object3D.position;
-            let markerPosition = marker.object3D.position;
-            let distance = cameraPosition.distanceTo(markerPosition)
-
-            check = setInterval(() => {
-                //cameraPosition = camera.object3D.position;
-                //markerPosition = marker.object3D.position;
-                distance = cameraPosition.distanceTo(markerPosition)
-
-                // do what you want with the distance:
-                console.log({ distance, ...markerPosition });
-            }, 1000);
+            rotation = { ...marker.object3D.rotation }
+            position = { ...marker.object3D.position }
+            distance = camera.object3D.position.distanceTo(position)
         });
 
-        marker.addEventListener('markerLost', () => {
-            clearInterval(check);
+        // log when keydown
+        document.addEventListener('keydown', (event) => {
+            if (distance > 0 && distance !== old) {
+                console.log({ distance, position, rotation });
+                old = distance
+            }
         })
-    })
+
+    });
 
 </script>
 
