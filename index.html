@@ -15,8 +15,98 @@
 
         <a-entity camera></a-entity>
     </a-scene>
+    <audio autoplay src='./assets/welcome.mp3' type="audio/mpeg"></audio>
 </body>
 <script>
+    /*
+
+        Position is used for maintaining a constant distance and to ensure both the marker and the stool are within the frame
+        We should ensure the marker is in the upper right quadrant of the frame.  In this way, the stool is mostly within the left quadrant and should always be within the frame.  We cannot guarantee it will be entirely in the frame however in all 5 perspectives.
+        Rotation values are in radians and are independent of distance
+        Left/Right rotations occur in only z and should change by 1 radian
+        Front/Back rotations occur in only x and should change by 1 radian
+        Therefore, y axis should not change much,  less than 0.5 radian
+
+    */
+
+    const zeros = { x: 0, y: 0, z: 0 }
+    const tolerance = 1.2 // values should be within 20%
+
+    const markers = {
+        above: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+        left: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+        right: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+        front: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+        back: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+    }
+
+    const { above, left, right, front, back } = markers
+
+    function multiply(vector, factor) {
+        if (!factor) return zeros
+        return {
+            x: vector.x * factor,
+            y: vector.y * factor,
+            z: vector.z * factor
+        }
+    }
+
+    function isWithin(val, a, b) {
+        if (val.x) {
+            b = b || multiply(a, tolerance)
+            return isWithin(val.x, a.x, b.x) && isWithin(val.y, a.y, b.y) && isWithin(val.z, a.z, b.z)
+        }
+        b = b || a * tolerance
+        return val >= a && val <= b
+    }
+
+    // a singleton to improve readability
+    const ensure = { marker: null }
+
+    ensure.distance = (marker, camera) => {
+        // Ensure the distance is within 20% of the baseline - maintain a constant distance from the baseline marker
+        // keep in mind, we can't get too close and still see the marker and so, if we're not within the distance we're always too far away
+        camera = camera || ensure.camera || zeros
+        if (!above.distance) return false
+        const distance = marker.object3D.distanceTo(camera)
+        return isWithin(distance, above.distance)
+    }
+
+    ensure.position = (marker) => {
+        // Ensure the position of the marker within the frame has not changed more than 20% in x, y, or z - both the marker and therefore the stool should be within the frame
+        const my = marker || ensure.marker
+        return isWithin(my.object3D.position, above.position)
+    }
+
+    ensure.upperRightQuadrant = (marker) => {
+        // Ensure the position of the marker has positive values in both x and y
+        const { x, y } = marker || ensure.marker
+        return x > 0 && y > 0
+    }
+
+    ensure.noXYrotation = (marker) => {
+        // Ensure the rotation of x & y does not change from baseline by more than 0.5 radian
+        const my = marker || ensure.marker
+        return isWithin(my.rotation.x, above.rotation.x - 0.5, above.rotation.x + 0.5)
+            && isWithin(my.rotation.y, above.rotation.y - 0.5, above.rotation.y + 0.5)
+    }
+
+    ensure.leftZrotation = (marker) => {
+        // Ensure the rotation of z changes by -0.5 radian from Above
+        // Ensure the rotation of z changes by -1 radian from Right
+        const my = marker || ensure.marker
+        return my.rotation.z <= above.rotation.z - 0.5
+            && (!right.rotation.z && my.rotation.z <= right.rotation.z - 1)
+    }
+
+    ensure.rightZrotation = (marker) => {
+        // Ensure the rotation of z changes by +0.5 radian from Above
+        // Ensure the rotation of z changes by +1 radian from Left
+        const my = marker || ensure.marker
+        return my.rotation.z >= above.rotation.z + 0.5
+            && (!left.rotation.z && my.rotation.z >= left.rotation.z + 1)
+    }
+
 
     // mirror the video, once permission granted and rendered
     const timer = setInterval(() => {
@@ -44,7 +134,7 @@
         let distance = camera.object3D.position.distanceTo(position)
         let old
 
-        // capture position and rotation
+        // capture distance:0, position and rotation
         marker.addEventListener('markerFound', () => {
             rotation = { ...marker.object3D.rotation }
             position = { ...marker.object3D.position }
