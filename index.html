@@ -8,14 +8,29 @@
 </head>
 
 <body style="margin : 0px; overflow: hidden;">
+    <div style='position: fixed; top: 10px; width:100%; text-align: center; z-index: 1;'>
+        <button>
+            Start
+        </button>
+        <button>
+            Clear
+        </button>
+        <div class='gallery'></div>
+    </div>
+
     <a-scene vr-mode-ui="enabled: false;" renderer="logarithmicDepthBuffer: true;" embedded
         arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
 
-        <a-marker preset='custom' type='pattern' url='https://ohchad.github.io/ar-stool-poc/stool.tools.marker.patt' />
+        <a-sound id="audio" src="https://ohchad.github.io/ar-stool-poc/assets/welcome.mp3" preload="auto" />
+
+        <a-entity sound="src: #welcome"></a-entity>
+
+        <a-marker preset='custom' type='pattern'
+            url='https://ohchad.github.io/ar-stool-poc/assets/stool.tools.marker.patt' />
 
         <a-entity camera></a-entity>
     </a-scene>
-    <audio autoplay src='./assets/welcome.mp3' type="audio/mpeg"></audio>
+
 </body>
 <script>
     /*
@@ -126,6 +141,16 @@
     // the following won't work if in the ^^^ init function above :(
     // and no markerFound events will be thrown unless AFRAME.registerComponent is called at least once
 
+    const sounds = [
+        "https://ohchad.github.io/ar-stool-poc/assets/welcome.mp3",
+        "https://ohchad.github.io/ar-stool-poc/assets/above.mp3",
+        "https://ohchad.github.io/ar-stool-poc/assets/good.shot.mp3",
+        "https://ohchad.github.io/ar-stool-poc/assets/front.mp3",
+        "https://ohchad.github.io/ar-stool-poc/assets/back.mp3",
+        "https://ohchad.github.io/ar-stool-poc/assets/left.mp3",
+        "https://ohchad.github.io/ar-stool-poc/assets/right.mp3",
+    ]
+
     window.addEventListener('load', () => {
         const camera = document.querySelector('[camera]');
         const marker = document.querySelector('a-marker');
@@ -133,6 +158,8 @@
         let position = { ...marker.object3D.position }
         let distance = camera.object3D.position.distanceTo(position)
         let old
+        const audio = document.querySelector('a-sound#audio');
+        let i = 0
 
         // capture distance:0, position and rotation
         marker.addEventListener('markerFound', () => {
@@ -146,6 +173,8 @@
             if (distance > 0 && distance !== old) {
                 console.log({ distance, position, rotation });
                 old = distance
+                audio.components.sound.playSound()
+                audio.setAttribute('src', sounds[++i & sounds.length])
             }
         })
 
