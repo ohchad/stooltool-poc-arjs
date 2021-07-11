@@ -4,7 +4,7 @@
     <script
         src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1c2407b26c61958baa93967b5412487cd94b290b/dist/aframe-master.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
-    <script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
+    <script src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
 </head>
 
 <body style="margin : 0px; overflow: hidden;">
@@ -15,13 +15,22 @@
         <button>
             Clear
         </button>
-        <div class='gallery'></div>
+        <div class='gallery'>
+            <canvas id="canvas" class="d-none" style="height:100px"></canvas>
+        </div>
+        <div class='msg'></div>
     </div>
 
     <a-scene vr-mode-ui="enabled: false;" renderer="logarithmicDepthBuffer: true;" embedded
         arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
 
-        <a-sound id="audio" src="https://ohchad.github.io/ar-stool-poc/assets/welcome.mp3" preload="auto" />
+        <a-sound id="audioWelcome" src="https://ohchad.github.io/ar-stool-poc/assets/welcome.mp3" preload="auto" />
+        <a-sound id="audioAbove" src="https://ohchad.github.io/ar-stool-poc/assets/above.mp3" preload="auto" />
+        <a-sound id="audioFront" src="https://ohchad.github.io/ar-stool-poc/assets/front.mp3" preload="auto" />
+        <a-sound id="audioBack" src="https://ohchad.github.io/ar-stool-poc/assets/back.mp3" preload="auto" />
+        <a-sound id="audioLeft" src="https://ohchad.github.io/ar-stool-poc/assets/left.mp3" preload="auto" />
+        <a-sound id="audioRight" src="https://ohchad.github.io/ar-stool-poc/assets/right.mp3" preload="auto" />
+        <a-sound id="audioGood" src="https://ohchad.github.io/ar-stool-poc/assets/good.shot.mp3" preload="auto" />
 
         <a-entity sound="src: #welcome"></a-entity>
 
@@ -141,15 +150,6 @@
     // the following won't work if in the ^^^ init function above :(
     // and no markerFound events will be thrown unless AFRAME.registerComponent is called at least once
 
-    const sounds = [
-        "https://ohchad.github.io/ar-stool-poc/assets/welcome.mp3",
-        "https://ohchad.github.io/ar-stool-poc/assets/above.mp3",
-        "https://ohchad.github.io/ar-stool-poc/assets/good.shot.mp3",
-        "https://ohchad.github.io/ar-stool-poc/assets/front.mp3",
-        "https://ohchad.github.io/ar-stool-poc/assets/back.mp3",
-        "https://ohchad.github.io/ar-stool-poc/assets/left.mp3",
-        "https://ohchad.github.io/ar-stool-poc/assets/right.mp3",
-    ]
 
     window.addEventListener('load', () => {
         const camera = document.querySelector('[camera]');
@@ -158,8 +158,17 @@
         let position = { ...marker.object3D.position }
         let distance = camera.object3D.position.distanceTo(position)
         let old
-        const audio = document.querySelector('a-sound#audio');
+        const welcome = document.querySelector('a-sound#audioWelcome');
+        const above = document.querySelector('a-sound#audioAbove');
+        const front = document.querySelector('a-sound#audioFront');
+        const back = document.querySelector('a-sound#audioBack');
+        const left = document.querySelector('a-sound#audioLeft');
+        const right = document.querySelector('a-sound#audioRight');
+        const good = document.querySelector('a-sound#audioGood');
+        const sounds = [welcome, above, front, back, left, right, good]
         let i = 0
+        const msg = document.querySelector('div.msg')
+        const gallery = document.querySelector('div.gallery')
 
         // capture distance:0, position and rotation
         marker.addEventListener('markerFound', () => {
@@ -168,13 +177,19 @@
             distance = camera.object3D.position.distanceTo(position)
         });
 
+
+
         // log when keydown
         document.addEventListener('keydown', (event) => {
+            const webcamElement = document.querySelector('video#arjs-video')
+            const canvasElement = document.getElementById('canvas');
+            const webcam = new Webcam(webcamElement, 'user', canvasElement);
+
             if (distance > 0 && distance !== old) {
-                console.log({ distance, position, rotation });
+                let pic = webcam.snap()
+                msg.innerHTML = JSON.stringify({ distance, position, rotation })
                 old = distance
-                audio.components.sound.playSound()
-                audio.setAttribute('src', sounds[++i & sounds.length])
+                sounds[i++ & sounds.length].components.sound.playSound()
             }
         })
 
