@@ -49,7 +49,7 @@
 </body>
 <script>
 
-
+    screen.orientation.lock('portrait')
     /*
 
         Position is used for maintaining a constant distance and to ensure both the marker and the stool are within the frame
@@ -279,6 +279,7 @@
                         playSound('done')
                         console.log('done')
                     }, 2000)
+
                 } else {
                     if (!ensure.upperRightQuadrant()) playSound('upperright')
                     else playSound('back')
