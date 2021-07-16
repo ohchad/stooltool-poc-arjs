@@ -63,29 +63,34 @@
 
     // lock landscape orientation
     screen.orientation.lock('landscape')
+    ScreenOrientation.lock('landscape')
 
+    function torch(on) {
 
-    // turn the torch on
-    navigator.mediaDevices.enumerateDevices().then(devices => {
+        // turn the torch on
+        navigator.mediaDevices.enumerateDevices().then(devices => {
 
-        const cameras = devices.filter((device) => device.kind === 'videoinput');
-        const camera = cameras[cameras.length - 1];
+            const cameras = devices.filter((device) => device.kind === 'videoinput');
+            const camera = cameras[cameras.length - 1];
 
-        // Create stream and get video track
-        navigator.mediaDevices.getUserMedia({
-            video: {
-                deviceId: camera.deviceId,
-                facingMode: ['user', 'environment'],
-                height: { ideal: 1080 },
-                width: { ideal: 1920 }
-            }
-        }).then(stream => {
-            const track = stream.getVideoTracks()[0];
-            track.applyConstraints({
-                advanced: [{ torch: true }]
+            // Create stream and get video track
+            navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: camera.deviceId,
+                    facingMode: ['user', 'environment'],
+                    height: { ideal: 1080 },
+                    width: { ideal: 1920 }
+                }
+            }).then(stream => {
+                const track = stream.getVideoTracks()[0];
+                track.applyConstraints({
+                    advanced: [{ torch: on }]
+                });
             });
         });
-    });
+    }
+
+    torch(true)
 
 
 
@@ -317,6 +322,7 @@
                     setTimeout(() => {
                         playSound('done')
                         console.log('done')
+                        torch(false)
                     }, 2000)
 
                 } else {
@@ -326,6 +332,7 @@
             } else {
                 playSound('done')
                 console.log('done')
+                torch(false)
             }
 
         })
