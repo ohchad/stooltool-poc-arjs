@@ -7,6 +7,14 @@
 </head>
 
 <style>
+    div.controls {
+        position: fixed;
+        top: 10px;
+        width: 100%;
+        text-align: center;
+        z-index: 1;
+    }
+
     div.gallery {
         height: 100px
     }
@@ -19,11 +27,11 @@
 </style>
 
 <body style="margin : 0px; overflow: hidden;">
-    <div style='position: fixed; top: 10px; width:100%; text-align: center; z-index: 1;'>
+    <div class="controls">
         <button id="start" onclick="welcome()">
             Start
         </button>
-        <div class='gallery' style="height:100px">
+        <div class='gallery'>
         </div>
         <div class='msg'></div>
     </div>
@@ -49,7 +57,39 @@
 </body>
 <script>
 
-    screen.orientation.lock('portrait')
+    // lock landscape orientation
+    screen.orientation.lock('landscape')
+
+
+    // turn the torch on
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+
+        const cameras = devices.filter((device) => device.kind === 'videoinput');
+        const camera = cameras[cameras.length - 1];
+
+        // Create stream and get video track
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                deviceId: camera.deviceId,
+                facingMode: ['user', 'environment'],
+                height: { ideal: 1080 },
+                width: { ideal: 1920 }
+            }
+        }).then(stream => {
+            const track = stream.getVideoTracks()[0];
+            track.applyConstraints({
+                advanced: [{ torch: true }]
+            });
+        });
+    });
+
+
+  //The light will be on as long the track exists
+
+
+}
+
+
     /*
 
         Position is used for maintaining a constant distance and to ensure both the marker and the stool are within the frame
@@ -153,18 +193,18 @@
     }
 
     // Front/Back rotations occur in only x and should change by 1 radian
-    ensure.frontRotation = (marker) => {
-        const my = (marker && marker.object3D) || ensure.marker
-        const { above, back } = photos
-        return my.rotation._x <= above.rotation._x - 0.5
-            && (back.rotation._x ? my.rotation._x <= back.rotation._x - 1 : true)
-    }
-
     ensure.backRotation = (marker) => {
         const my = (marker && marker.object3D) || ensure.marker
         const { above, front } = photos
+        return my.rotation._x <= above.rotation._x - 0.5
+            && (front.rotation._x ? my.rotation._x <= front.rotation._x - 1 : true)
+    }
+
+    ensure.frontRotation = (marker) => {
+        const my = (marker && marker.object3D) || ensure.marker
+        const { above, back } = photos
         return my.rotation._x >= above.rotation._x + 0.5
-            && (front.rotation._x ? my.rotation._x >= front.rotation._x + 1 : true)
+            && (back.rotation._x ? my.rotation._x >= back.rotation._x + 1 : true)
     }
 
 
