@@ -62,8 +62,8 @@
 <script>
 
     // lock landscape orientation
-    screen.orientation.lock('landscape')
-    ScreenOrientation.lock('landscape')
+    // screen.orientation.lock('landscape')
+    // ScreenOrientation.lock('landscape')
 
     function torch(on) {
 
@@ -184,7 +184,7 @@
         const my = (marker && marker.object3D) || ensure.marker
         const { above, right } = photos
         return my.rotation._z <= above.rotation._z - 0.5
-            && (right.rotation._z ? my.rotation._z <= right.rotation._z - 1 : true)
+        //&& (right.rotation._z ? my.rotation._z <= right.rotation._z - 1 : true)
     }
 
     ensure.rightRotation = (marker) => {
@@ -193,7 +193,7 @@
         const my = (marker && marker.object3D) || ensure.marker
         const { above, left } = photos
         return my.rotation._z >= above.rotation._z + 0.5
-            && (left.rotation._z ? my.rotation._z >= left.rotation._z + 1 : true)
+        //&& (left.rotation._z ? my.rotation._z >= left.rotation._z + 1 : true)
     }
 
     // Front/Back rotations occur in only x and should change by 1 radian
@@ -201,14 +201,14 @@
         const my = (marker && marker.object3D) || ensure.marker
         const { above, front } = photos
         return my.rotation._x <= above.rotation._x - 0.5
-            && (front.rotation._x ? my.rotation._x <= front.rotation._x - 1 : true)
+        //&& (front.rotation._x ? my.rotation._x <= front.rotation._x - 1 : true)
     }
 
     ensure.frontRotation = (marker) => {
         const my = (marker && marker.object3D) || ensure.marker
         const { above, back } = photos
         return my.rotation._x >= above.rotation._x + 0.5
-            && (back.rotation._x ? my.rotation._x >= back.rotation._x + 1 : true)
+        //&& (back.rotation._x ? my.rotation._x >= back.rotation._x + 1 : true)
     }
 
 
