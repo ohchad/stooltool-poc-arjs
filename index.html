@@ -1,344 +1,149 @@
 <html>
 
 <head>
-    <script src="./scripts/aframe-master.min.js"></script>
-    <script src="./scripts/aframe-ar-nft.js"></script>
-    <script src="./scripts/webcam-easy.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+
+    <style>
+        body {
+            background-color: ghostwhite;
+        }
+
+        .demo-card-wide.mdl-card {
+            width: 512px;
+        }
+
+        .demo-card-wide>.mdl-card__title {
+            color: #fff;
+            height: 176px;
+            background: url('./assets/crawling.jpg') center / cover;
+        }
+
+        .demo-card-wide>.mdl-card__menu {
+            color: #fff;
+        }
+
+        .logo-img {
+            width: 202px
+        }
+
+
+        .container {
+            position: relative;
+            height: 100%;
+        }
+
+        .center {
+            margin: 0;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            -ms-transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%);
+        }
+
+        .thanks {
+            display: none
+        }
+    </style>
 </head>
 
-<style>
-    div.controls {
-        position: fixed;
-        top: 10px;
-        width: 100%;
-        text-align: center;
-        z-index: 1;
-    }
+<body>
 
-    button#start {
-        font-size: large;
-    }
+    <div class='container'>
+        <div class='center'>
 
-    div.gallery {
-        height: 100px
-    }
 
-    canvas {
-        height: inherit;
-        border: 1px solid white;
-        margin: 2px;
-    }
-</style>
 
-<body style="margin : 0px; overflow: hidden;">
-    <div class="controls">
-        <button id="start" onclick="welcome()">
-            Start
-        </button>
-        <div class='gallery'>
+            <div class="demo-card-wide mdl-card mdl-shadow--2dp">
+                <div class="mdl-card__title">
+                    <img src="https://assets-global.website-files.com/5f7b1dd9f6b44494c72be5d5/5f7b43c538671c57e88b6b8d_Main-Nav-Logo.svg"
+                        alt="ObvioHealth primary logo." class="logo-img">
+                </div>
+                <div class="mdl-card__supporting-text hideme">
+                    <h3>Sign in</h3>
+                    Please enter your email and we will send you a link to sign in automatically.
+                    No password required.
+                </div>
+                <div class="mdl-card__actions mdl-card--border hideme">
+
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                        <input class="mdl-textfield__input" type="email"
+                            pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$" id='email'>
+                        <label class="mdl-textfield__label" for="email">Email</label>
+                    </div>
+
+                    <div>
+                        <button
+                            class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent send"
+                            disabled>
+                            Send my sign in link
+                        </button>
+                    </div>
+                </div>
+                <div class='thanks mdl-card__supporting-text'>
+                    <h3>Thank you!</h3>
+                    Check your email inbox and junk folder for your sign in link. It will take you to stool
+                    tools and you can close this window when you're ready or <br />
+                    <a href='.' onclick="location.reload()">try another email address</a>
+                </div>
+
+            </div>
+
         </div>
-        <div class='msg'></div>
     </div>
 
-    <a-scene vr-mode-ui="enabled: false;" renderer="logarithmicDepthBuffer: true;" embedded
-        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
-        <a-entity camera></a-entity>
+    <script>
+        jQuery(function ($) {
+            let $email = $('input[type=email]')
+            let $parent = $email.parent()
+            let $btn = $('button.send')
+            let $thanks = $('.thanks')
 
-        <a-marker preset='custom' type='pattern' url='./assets/stool.tools.marker.patt' />
+            $email.keyup(() => {
+                let isInvalid = $parent.hasClass('is-invalid')
+                let isDirty = $parent.hasClass('is-dirty')
+                $btn.attr('disabled', isInvalid || !isDirty)
+            })
 
-        <a-sound id="sound-welcome" src="./assets/welcome.mp3" preload="auto" />
-        <a-sound id="sound-above" src="./assets/above.mp3" preload="auto" />
-        <a-sound id="sound-front" src="./assets/front.mp3" preload="auto" />
-        <a-sound id="sound-back" src="./assets/back.mp3" preload="auto" />
-        <a-sound id="sound-left" src="./assets/left.mp3" preload="auto" />
-        <a-sound id="sound-right" src="./assets/right.mp3" preload="auto" />
-        <a-sound id="sound-good" src="./assets/good.mp3" preload="auto" />
-        <a-sound id="sound-upperright" src="./assets/upperright.mp3" preload="auto" />
-        <a-sound id="sound-done" src="./assets/done.mp3" preload="auto" />
+            $btn.click(() => {
+                $('.hideme').slideUp()
+                $thanks.slideDown()
 
-    </a-scene>
-
-</body>
-<script>
-
-    // lock landscape orientation
-    //screen.orientation.lock('landscape')
-    ScreenOrientation.lock('landscape')
-
-    function torch(on) {
-
-        // turn the torch on
-        navigator.mediaDevices.enumerateDevices().then(devices => {
-
-            const cameras = devices.filter((device) => device.kind === 'videoinput');
-            const camera = cameras[cameras.length - 1];
-
-            // Create stream and get video track
-            navigator.mediaDevices.getUserMedia({
-                video: {
-                    deviceId: camera.deviceId,
-                    facingMode: ['user', 'environment'],
-                    height: { ideal: 1080 },
-                    width: { ideal: 1920 }
-                }
-            }).then(stream => {
-                const track = stream.getVideoTracks()[0];
-                track.applyConstraints({
-                    advanced: [{ torch: on }]
-                });
-            });
-        });
-    }
-
-    torch(true)
-
-
-
-    /*
-
-        Position is used for maintaining a constant distance and to ensure both the marker and the stool are within the frame
-        We should ensure the marker is in the upper right quadrant of the frame.  In this way, the stool is mostly within the left quadrant and should always be within the frame.  We cannot guarantee it will be entirely in the frame however in all 5 perspectives.
-        Rotation values are in radians and are independent of distance
-        Left/Right rotations occur in only z and should change by 1 radian
-        Front/Back rotations occur in only x and should change by 1 radian
-        Therefore, y axis should not change much,  less than 0.5 radian
-
-    */
-
-    const zeros = { x: 0, y: 0, z: 0 }
-    const tolerance = 1.2 // values should be within 20%
-
-    const photos = {
-        above: { position: { ...zeros }, rotation: { ...zeros }, img: null },
-        left: { position: { ...zeros }, rotation: { ...zeros }, img: null },
-        right: { position: { ...zeros }, rotation: { ...zeros }, img: null },
-        front: { position: { ...zeros }, rotation: { ...zeros }, img: null },
-        back: { position: { ...zeros }, rotation: { ...zeros }, img: null },
-    }
-
-    function multiply(vector, factor) {
-        factor = factor || 0
-        return vector.x ? {
-            x: vector.x * factor,
-            y: vector.y * factor,
-            z: vector.z * factor
-        } : {
-            _x: vector._x * factor,
-            _y: vector._y * factor,
-            _z: vector._z * factor
-        }
-
-    }
-
-    function isWithin(val, a, b) {
-        if (val.x) {
-            b = b || multiply(a, tolerance)
-            return isWithin(val.x, a.x, b.x) && isWithin(val.y, a.y, b.y) && isWithin(val.z, a.z, b.z)
-        } else if (val._x) {
-            b = b || multiply(a, tolerance)
-            return isWithin(val._x, a._x, b._x) && isWithin(val._y, a._y, b._y) && isWithin(val._z, a._z, b._z)
-        }
-        b = b || a * tolerance
-        return val >= a && val <= b
-    }
-
-    // a singleton to improve readability
-    const ensure = { marker: null }
-
-    ensure.distance = (marker, camera) => {
-        // Ensure the distance is within 20% of the baseline - maintain a constant distance from the baseline marker
-        // keep in mind, we can't get too close and still see the marker and so, if we're not within the distance we're always too far away
-        camera = camera || ensure.camera || zeros
-        const my = (marker && marker.object3D) || ensure.marker
-        const above = photos.above
-        if (!above.distance) return false
-        const distance = my.distanceTo(camera)
-        return isWithin(distance, above.distance)
-    }
-
-    ensure.position = (marker) => {
-        // Ensure the position of the marker within the frame has not changed more than 20% in x, y, or z - both the marker and therefore the stool should be within the frame
-        const my = (marker && marker.object3D) || ensure.marker
-        const above = photos.above
-        return isWithin(my.position, above.position)
-    }
-
-    ensure.upperRightQuadrant = (marker) => {
-        // Ensure the position of the marker has positive values in both x and y
-        const my = (marker && marker.object3D) || ensure.marker
-        const { x, y } = my.position
-        return x > 0 && y > 0
-    }
-
-    ensure.noXYrotation = (marker) => {
-        // Ensure the rotation of x & y does not change from baseline by more than 0.5 radian
-        const my = (marker && marker.object3D) || ensure.marker
-        const above = photos.above
-        return isWithin(my.rotation._x, above.rotation._x - 0.5, above.rotation._x + 0.5)
-            && isWithin(my.rotation._y, above.rotation._y - 0.5, above.rotation._y + 0.5)
-    }
-
-    ensure.leftRotation = (marker) => {
-        // Ensure the rotation of z changes by -0.5 radian from Above
-        // Ensure the rotation of z changes by -1 radian from Right
-        const my = (marker && marker.object3D) || ensure.marker
-        const { above, right } = photos
-        return my.rotation._z <= above.rotation._z - 0.5
-        //&& (right.rotation._z ? my.rotation._z <= right.rotation._z - 1 : true)
-    }
-
-    ensure.rightRotation = (marker) => {
-        // Ensure the rotation of z changes by +0.5 radian from Above
-        // Ensure the rotation of z changes by +1 radian from Left
-        const my = (marker && marker.object3D) || ensure.marker
-        const { above, left } = photos
-        return my.rotation._z >= above.rotation._z + 0.5
-        //&& (left.rotation._z ? my.rotation._z >= left.rotation._z + 1 : true)
-    }
-
-    // Front/Back rotations occur in only x and should change by 1 radian
-    ensure.backRotation = (marker) => {
-        const my = (marker && marker.object3D) || ensure.marker
-        const { above, front } = photos
-        return my.rotation._x <= above.rotation._x - 0.5
-        //&& (front.rotation._x ? my.rotation._x <= front.rotation._x - 1 : true)
-    }
-
-    ensure.frontRotation = (marker) => {
-        const my = (marker && marker.object3D) || ensure.marker
-        const { above, back } = photos
-        return my.rotation._x >= above.rotation._x + 0.5
-        //&& (back.rotation._x ? my.rotation._x >= back.rotation._x + 1 : true)
-    }
-
-
-    function snapPhoto() {
-        const webcamElement = document.querySelector('video#arjs-video')
-        const canvas = document.createElement('canvas')
-        const webcam = new Webcam(webcamElement, 'user', canvas);
-        const img = webcam.snap()
-        const gallery = document.querySelector('div.gallery')
-        gallery.appendChild(canvas)
-        const ctx = canvas.getContext("2d");
-        var image = new Image();
-        image.onload = function () {
-            ctx.drawImage(image, 0, 0);
-        };
-        image.src = img
-        return img
-    }
-
-    // mirror the video, once permission granted and rendered
-    // const timer = setInterval(() => {
-    //     const vid = document.querySelector('video#arjs-video')
-    //     if (vid) {
-    //         vid.style.transform = 'scale(-1,1)'
-    //         clearInterval(timer)
-    //     }
-    // }, 500)
-
-    AFRAME.registerComponent('markerhandler', {
-        init: function () {
-            // this is required, but only to ensure markerFound events are thrown
-        }
-    });
-
-
-    function playSound(name) {
-        document.querySelector(`a-sound#sound-${name}`).components.sound.playSound()
-    }
-
-    function welcome() {
-        document.getElementById("start").style.display = "none";
-        playSound('welcome')
-    }
-
-
-    window.addEventListener('load', () => {
-        const camera = document.querySelector('[camera]');
-        const marker = document.querySelector('a-marker');
-        let rotation = { ...marker.object3D.rotation }
-        let position = { ...marker.object3D.position }
-        let distance = camera.object3D.position.distanceTo(position)
-        let old
-        let i = 0
-        const msg = document.querySelector('div.msg')
-        const gallery = document.querySelector('div.gallery')
-
-
-
-        // capture distance:0, position and rotation
-        marker.addEventListener('markerFound', () => {
-            rotation = { ...marker.object3D.rotation }
-            position = { ...marker.object3D.position }
-            distance = camera.object3D.position.distanceTo(position)
-
-            const webcamElement = document.querySelector('video#arjs-video')
-            const webcam = new Webcam(webcamElement, 'user');
-
-            ensure.marker = { ...marker.object3D }
-
-            if (!photos.above.img) {
-                console.log('looking above')
-                if (ensure.upperRightQuadrant()) {
-                    photos.above = { position, rotation, img: snapPhoto() }
-                    playSound('good')
-                } else {
-                    playSound('above')
-                }
-            } else if (!photos.left.img) {
-                console.log('looking left')
-                if (ensure.upperRightQuadrant() && ensure.leftRotation()) {
-                    photos.left = { position, rotation, img: snapPhoto() }
-                    playSound('good')
-                } else {
-                    if (!ensure.upperRightQuadrant()) playSound('upperright')
-                    else playSound('left')
-                }
-            } else if (!photos.right.img) {
-                console.log('looking right')
-                if (ensure.upperRightQuadrant() && ensure.rightRotation()) {
-                    photos.right = { position, rotation, img: snapPhoto() }
-                    playSound('good')
-                } else {
-                    if (!ensure.upperRightQuadrant()) playSound('upperright')
-                    else playSound('right')
-                }
-            } else if (!photos.front.img) {
-                console.log('looking front')
-                if (ensure.upperRightQuadrant() && ensure.frontRotation()) {
-                    photos.front = { position, rotation, img: snapPhoto() }
-                    playSound('good')
-                } else {
-                    if (!ensure.upperRightQuadrant()) playSound('upperright')
-                    else playSound('front')
-                }
-            } else if (!photos.back.img) {
-                console.log('looking back')
-                if (ensure.upperRightQuadrant() && ensure.backRotation()) {
-                    photos.back = { position, rotation, img: snapPhoto() }
-                    playSound('good')
-
-                    setTimeout(() => {
-                        playSound('done')
-                        console.log('done')
-                        torch(false)
-                    }, 2000)
-
-                } else {
-                    if (!ensure.upperRightQuadrant()) playSound('upperright')
-                    else playSound('back')
-                }
-            } else {
-                playSound('done')
-                console.log('done')
-                torch(false)
-            }
-
+                firebase.auth().sendSignInLinkToEmail($email.val(), config.actionCodeSettings)
+                    .then(() => {
+                        // The link was successfully sent. Inform the user.
+                        // Save the email locally so you don't need to ask the user for it again
+                        // if they open the link on the same device.
+                        window.localStorage.setItem('emailForSignIn', $email.val());
+                        // ...
+                    })
+                    .catch((error) => {
+                        console.log(error)
+                        var errorCode = error.code;
+                        var errorMessage = error.message;
+                        // ...
+                    });
+            })
         })
 
-    });
+    </script>
 
-</script>
+    <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+    <script src="https://www.gstatic.com/firebasejs/8.7.1/firebase-app.js"></script>
+
+    <!-- If you enabled Analytics in your project, add the Firebase SDK for Analytics -->
+    <script src="https://www.gstatic.com/firebasejs/8.7.1/firebase-analytics.js"></script>
+
+    <!-- Add Firebase products that you want to use -->
+    <script src="https://www.gstatic.com/firebasejs/8.7.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.7.1/firebase-firestore.js"></script>
+
+    <script src='./scripts/main.js'></script>
+
+</body>
 
 </html>

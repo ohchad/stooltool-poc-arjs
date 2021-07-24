@@ -1,0 +1,392 @@
+<html>
+
+<head>
+    <script src="./scripts/aframe-master.min.js"></script>
+    <script src="./scripts/aframe-ar-nft.js"></script>
+    <script src="./scripts/webcam-easy.min.js"></script>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+</head>
+
+<style>
+    div.controls {
+        position: fixed;
+        width: 50%;
+        z-index: 10;
+        background-color: white;
+        top: 25%;
+        left: 25%;
+        filter: drop-shadow(4px 4px 4px #888);
+        padding: 20px;
+    }
+
+    div.gallery {
+        height: 100px;
+        position: fixed;
+        z-index: 10;
+        top: 10px;
+        left: 10px;
+    }
+
+    canvas {
+        height: inherit;
+        border: 1px solid white;
+        margin: 2px;
+    }
+
+    button#start {
+        margin-top: 10px;
+        padding: 5px;
+        display: block;
+        text-align: center;
+    }
+
+    .centered {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        /* bring your own prefixes */
+        transform: translate(-50%, -50%);
+    }
+</style>
+
+<body style="margin : 0px; overflow: hidden;">
+
+    <div class="controls">
+        <h2>Welcome</h2>
+        Please enable the camera and your speaker and prepare your diaper to be photographed with the stool tool marker
+        in the upper right hand corner of the frame.
+
+        <button id="start" onclick="welcome()"
+            class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent send">
+            Start
+        </button>
+
+    </div>
+
+    <div class='gallery'></div>
+    <div class='msg'></div>
+    <div class='centered'><img src='./assets/crosshairs.png' /></div>
+
+    <a-scene vr-mode-ui="enabled: false;" renderer="logarithmicDepthBuffer: true;" embedded
+        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+        <a-entity camera></a-entity>
+
+        <!-- create a new marker https://jeromeetienne.github.io/AR.js/three.js/examples/marker-training/examples/generator.html -->
+        <a-marker preset='custom' type='pattern' url='./assets/stool.tools.marker.patt' />
+
+        <a-sound id="sound-welcome" src="./assets/tutorial.mp3" preload="auto" />
+        <a-sound id="sound-above" src="./assets/above.mp3" preload="auto" />
+        <a-sound id="sound-front" src="./assets/front.mp3" preload="auto" />
+        <a-sound id="sound-back" src="./assets/back.mp3" preload="auto" />
+        <a-sound id="sound-left" src="./assets/left.mp3" preload="auto" />
+        <a-sound id="sound-right" src="./assets/right.mp3" preload="auto" />
+        <a-sound id="sound-good" src="./assets/good.mp3" preload="auto" />
+        <a-sound id="sound-upperright" src="./assets/upperright.mp3" preload="auto" />
+        <a-sound id="sound-done" src="./assets/done.mp3" preload="auto" />
+
+    </a-scene>
+
+
+</body>
+<script>
+
+    // lock landscape orientation
+    //screen.orientation.lock('landscape')
+    //ScreenOrientation.lock('welcome')
+
+
+    function torch(on) {
+
+        // turn the torch on
+        navigator.mediaDevices.enumerateDevices().then(devices => {
+
+            const cameras = devices.filter((device) => device.kind === 'videoinput');
+            const camera = cameras[cameras.length - 1];
+
+            // Create stream and get video track
+            navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: camera.deviceId,
+                    facingMode: ['user', 'environment'],
+                    height: { ideal: 1080 },
+                    width: { ideal: 1920 }
+                }
+            }).then(stream => {
+                const track = stream.getVideoTracks()[0];
+                track.applyConstraints({
+                    advanced: [{ torch: on }]
+                });
+            });
+        });
+    }
+
+    torch(true)
+
+
+
+    /*
+
+        Position is used for maintaining a constant distance and to ensure both the marker and the stool are within the frame
+        We should ensure the marker is in the upper right quadrant of the frame.  In this way, the stool is mostly within the left quadrant and should always be within the frame.  We cannot guarantee it will be entirely in the frame however in all 5 perspectives.
+        Rotation values are in radians and are independent of distance
+        Left/Right rotations occur in only z and should change by 1 radian
+        Front/Back rotations occur in only x and should change by 1 radian
+        Therefore, y axis should not change much,  less than 0.5 radian
+
+    */
+
+    const zeros = { x: 0, y: 0, z: 0 }
+    const tolerance = 1.2 // values should be within 20%
+
+    const photos = {
+        above: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+        left: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+        right: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+        front: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+        back: { position: { ...zeros }, rotation: { ...zeros }, img: null },
+    }
+
+    function multiply(vector, factor) {
+        factor = factor || 0
+        return vector.x ? {
+            x: vector.x * factor,
+            y: vector.y * factor,
+            z: vector.z * factor
+        } : {
+            _x: vector._x * factor,
+            _y: vector._y * factor,
+            _z: vector._z * factor
+        }
+
+    }
+
+    function isWithin(val, a, b) {
+        if (val.x) {
+            b = b || multiply(a, tolerance)
+            return isWithin(val.x, a.x, b.x) && isWithin(val.y, a.y, b.y) && isWithin(val.z, a.z, b.z)
+        } else if (val._x) {
+            b = b || multiply(a, tolerance)
+            return isWithin(val._x, a._x, b._x) && isWithin(val._y, a._y, b._y) && isWithin(val._z, a._z, b._z)
+        }
+        b = b || a * tolerance
+        return val >= a && val <= b
+    }
+
+    // a singleton to improve readability
+    const ensure = { marker: null }
+
+    ensure.distance = (marker, camera) => {
+        // Ensure the distance is within 20% of the baseline - maintain a constant distance from the baseline marker
+        // keep in mind, we can't get too close and still see the marker and so, if we're not within the distance we're always too far away
+        camera = camera || ensure.camera || zeros
+        const my = (marker && marker.object3D) || ensure.marker
+        const above = photos.above
+        if (!above.distance) return false
+        const distance = my.distanceTo(camera)
+        return isWithin(distance, above.distance)
+    }
+
+    ensure.position = (marker) => {
+        // Ensure the position of the marker within the frame has not changed more than 20% in x, y, or z - both the marker and therefore the stool should be within the frame
+        const my = (marker && marker.object3D) || ensure.marker
+        const above = photos.above
+        return isWithin(my.position, above.position)
+    }
+
+    ensure.upperRightQuadrant = (marker) => {
+        // Ensure the position of the marker has positive values in both x and y
+        const my = (marker && marker.object3D) || ensure.marker
+        const { x, y } = my.position
+        return x > 0 && y > 0
+    }
+
+    ensure.noXYrotation = (marker) => {
+        // Ensure the rotation of x & y does not change from baseline by more than 0.5 radian
+        const my = (marker && marker.object3D) || ensure.marker
+        const above = photos.above
+        return isWithin(my.rotation._x, above.rotation._x - 0.5, above.rotation._x + 0.5)
+            && isWithin(my.rotation._y, above.rotation._y - 0.5, above.rotation._y + 0.5)
+    }
+
+    ensure.leftRotation = (marker) => {
+        // Ensure the rotation of z changes by -0.5 radian from Above
+        // Ensure the rotation of z changes by -1 radian from Right
+        const my = (marker && marker.object3D) || ensure.marker
+        const { above, right } = photos
+        return my.rotation._z < above.rotation._z - 0.5
+    }
+
+    ensure.rightRotation = (marker) => {
+        // Ensure the rotation of z changes by +0.5 radian from Above
+        // Ensure the rotation of z changes by +1 radian from Left
+        const my = (marker && marker.object3D) || ensure.marker
+        const { above, left } = photos
+        return my.rotation._z > above.rotation._z + 0.5
+    }
+
+    // Front/Back rotations occur in only x and should change by 1 radian
+    ensure.frontRotation = (marker) => {
+        const my = (marker && marker.object3D) || ensure.marker
+        const { above, front } = photos
+        return my.rotation._x < above.rotation._x - 0.5
+    }
+
+    ensure.backRotation = (marker) => {
+        const my = (marker && marker.object3D) || ensure.marker
+        const { above, back } = photos
+        return my.rotation._x > above.rotation._x + 0.5
+    }
+
+
+    function snapPhoto() {
+        const webcamElement = document.querySelector('video#arjs-video')
+        const canvas = document.createElement('canvas')
+        const webcam = new Webcam(webcamElement, 'user', canvas);
+        const img = webcam.snap()
+        const gallery = document.querySelector('div.gallery')
+        gallery.appendChild(canvas)
+        const ctx = canvas.getContext("2d");
+        var image = new Image();
+        image.onload = function () {
+            ctx.drawImage(image, 0, 0);
+        };
+        image.src = img
+        return img
+    }
+
+    // mirror the video, once permission granted and rendered
+    // const timer = setInterval(() => {
+    //     const vid = document.querySelector('video#arjs-video')
+    //     if (vid) {
+    //         vid.style.transform = 'scale(-1,1)'
+    //         clearInterval(timer)
+    //     }
+    // }, 500)
+
+    AFRAME.registerComponent('markerhandler', {
+        init: function () {
+            // this is required, but only to ensure markerFound events are thrown
+        }
+    });
+
+
+    let lastSound = {}
+    function playSound(name) {
+
+        if (name === 'done') {
+            lastSound.sound.stopSound()
+            document.querySelector(`a-sound#sound-${name}`).components.sound.playSound()
+            return
+        }
+
+        const now = Date.now()
+        if (lastSound.now && now - lastSound.now < 3000) return
+        lastSound.now = now
+        lastSound.sound = document.querySelector(`a-sound#sound-${name}`).components.sound
+        lastSound.sound.playSound()
+    }
+
+    function welcome() {
+        $('.controls').slideUp()
+    }
+
+
+    window.addEventListener('load', () => {
+        const camera = document.querySelector('[camera]');
+        const marker = document.querySelector('a-marker');
+        let rotation = { ...marker.object3D.rotation }
+        let position = { ...marker.object3D.position }
+        let distance = camera.object3D.position.distanceTo(position)
+        let old, done
+        let i = 0
+        const msg = document.querySelector('div.msg')
+        const gallery = document.querySelector('div.gallery')
+
+        setTimeout(() => { playSound('welcome') }, 2000)
+
+        marker.addEventListener('markerFound', () => {
+            timer = setInterval(() => {
+                marker.dispatchEvent(new Event('markerCheck'))
+            }, 1000);
+        })
+        marker.addEventListener('markerLost', () => {
+            clearInterval(timer)
+            playSound('upperright')
+        })
+
+        // capture distance:0, position and rotation
+        marker.addEventListener('markerCheck', () => {
+            if (done) return
+            rotation = { ...marker.object3D.rotation }
+            position = { ...marker.object3D.position }
+            distance = camera.object3D.position.distanceTo(position)
+
+            console.log({ distance, rotation, position })
+
+            ensure.marker = { ...marker.object3D }
+
+            if (!photos.above.img) {
+                console.log('looking above')
+                if (ensure.upperRightQuadrant()) {
+                    photos.above = { position, rotation, img: snapPhoto() }
+                    playSound('good')
+                } else {
+                    playSound('above')
+                }
+            } else if (!photos.left.img) {
+                console.log('looking left')
+                if (ensure.upperRightQuadrant() && ensure.leftRotation()) {
+                    photos.left = { position, rotation, img: snapPhoto() }
+                    playSound('good')
+                } else {
+                    if (!ensure.upperRightQuadrant()) playSound('upperright')
+                    else playSound('left')
+                }
+            } else if (!photos.right.img) {
+                console.log('looking right')
+                if (ensure.upperRightQuadrant() && ensure.rightRotation()) {
+                    photos.right = { position, rotation, img: snapPhoto() }
+                    playSound('good')
+                } else {
+                    if (!ensure.upperRightQuadrant()) playSound('upperright')
+                    else playSound('right')
+                }
+            } else if (!photos.front.img) {
+                console.log('looking front')
+                if (ensure.upperRightQuadrant() && ensure.frontRotation()) {
+                    photos.front = { position, rotation, img: snapPhoto() }
+                    playSound('good')
+                } else {
+                    if (!ensure.upperRightQuadrant()) playSound('upperright')
+                    else playSound('front')
+                }
+            } else if (!photos.back.img) {
+                console.log('looking back')
+                if (ensure.upperRightQuadrant() && ensure.backRotation()) {
+                    photos.back = { position, rotation, img: snapPhoto() }
+                    playSound('good')
+
+                    setTimeout(() => {
+                        playSound('done')
+                        console.log('done')
+                        torch(false)
+                        done = true
+                    }, 2000)
+
+                } else {
+                    if (!ensure.upperRightQuadrant()) playSound('upperright')
+                    else playSound('back')
+                }
+            }
+
+        })
+    });
+
+</script>
+
+</html>

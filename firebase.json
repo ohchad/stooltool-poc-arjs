@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "site": "stooltool-photos",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
