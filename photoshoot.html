@@ -52,6 +52,41 @@
         /* bring your own prefixes */
         transform: translate(-50%, -50%);
     }
+
+    .upper.right {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+    }
+
+    .lower.right {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+    }
+
+    .msg {
+        color: white;
+    }
+
+    .marker.status {
+        font-size: x-large;
+    }
+
+    .marker.status.lost:after {
+        color: red;
+        content: 'please ensure the marker is in the frame'
+    }
+
+    .marker.status.found:after {
+        color: gold;
+        content: 'please ensure the marker is in the upper right corner'
+    }
+
+    .marker.status.correct:after {
+        color: green;
+        content: 'Good.  Hold steady.'
+    }
 </style>
 
 <body style="margin : 0px; overflow: hidden;">
@@ -69,8 +104,9 @@
     </div>
 
     <div class='gallery'></div>
-    <div class='msg'></div>
-    <div class='centered'><img src='./assets/crosshairs.png' /></div>
+    <div class='centered'><img class='crosshairs' src='./assets/crosshairs.red.png' /></div>
+    <div class="upper right marker status lost"></div>
+    <div class='lower right msg'></div>
 
     <a-scene vr-mode-ui="enabled: false;" renderer="logarithmicDepthBuffer: true;" embedded
         arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
@@ -101,28 +137,32 @@
 
 
     function torch(on) {
+        try {
 
-        // turn the torch on
-        navigator.mediaDevices.enumerateDevices().then(devices => {
+            // turn the torch on
+            navigator.mediaDevices.enumerateDevices().then(devices => {
 
-            const cameras = devices.filter((device) => device.kind === 'videoinput');
-            const camera = cameras[cameras.length - 1];
+                const cameras = devices.filter((device) => device.kind === 'videoinput');
+                const camera = cameras[cameras.length - 1];
 
-            // Create stream and get video track
-            navigator.mediaDevices.getUserMedia({
-                video: {
-                    deviceId: camera.deviceId,
-                    facingMode: ['user', 'environment'],
-                    height: { ideal: 1080 },
-                    width: { ideal: 1920 }
-                }
-            }).then(stream => {
-                const track = stream.getVideoTracks()[0];
-                track.applyConstraints({
-                    advanced: [{ torch: on }]
+                // Create stream and get video track
+                navigator.mediaDevices.getUserMedia({
+                    video: {
+                        deviceId: camera.deviceId,
+                        facingMode: ['user', 'environment'],
+                        height: { ideal: 1080 },
+                        width: { ideal: 1920 }
+                    }
+                }).then(stream => {
+                    const track = stream.getVideoTracks()[0];
+                    track.applyConstraints({
+                        advanced: [{ torch: on }]
+                    });
                 });
             });
-        });
+        } catch (err) {
+            console.log(error)
+        }
     }
 
     torch(true)
@@ -179,6 +219,8 @@
 
     // a singleton to improve readability
     const ensure = { marker: null }
+    const $markerStatus = $('.marker.status')
+    const $crosshairs = $('img.crosshairs')
 
     ensure.distance = (marker, camera) => {
         // Ensure the distance is within 20% of the baseline - maintain a constant distance from the baseline marker
@@ -202,7 +244,12 @@
         // Ensure the position of the marker has positive values in both x and y
         const my = (marker && marker.object3D) || ensure.marker
         const { x, y } = my.position
-        return x > 0 && y > 0
+        const good = x > 0 && y > 0
+        if (good) {
+            $markerStatus.addClass('correct').removeClass('lost found')
+            $crosshairs.attr('src', './assets/crosshairs.green.png')
+        }
+        return good
     }
 
     ensure.noXYrotation = (marker) => {
@@ -217,7 +264,7 @@
         // Ensure the rotation of z changes by -0.5 radian from Above
         // Ensure the rotation of z changes by -1 radian from Right
         const my = (marker && marker.object3D) || ensure.marker
-        const { above, right } = photos
+        const { above } = photos
         return my.rotation._z < above.rotation._z - 0.5
     }
 
@@ -225,7 +272,7 @@
         // Ensure the rotation of z changes by +0.5 radian from Above
         // Ensure the rotation of z changes by +1 radian from Left
         const my = (marker && marker.object3D) || ensure.marker
-        const { above, left } = photos
+        const { above } = photos
         return my.rotation._z > above.rotation._z + 0.5
     }
 
@@ -238,8 +285,14 @@
 
     ensure.backRotation = (marker) => {
         const my = (marker && marker.object3D) || ensure.marker
-        const { above, back } = photos
+        const { above } = photos
         return my.rotation._x > above.rotation._x + 0.5
+    }
+
+    ensure.aboveRotation = (marker) => {
+        const my = (marker && marker.object3D) || ensure.marker
+        const { front } = photos
+        return my.rotation._x > front.rotation._x + 0.5
     }
 
 
@@ -302,21 +355,27 @@
         let rotation = { ...marker.object3D.rotation }
         let position = { ...marker.object3D.position }
         let distance = camera.object3D.position.distanceTo(position)
-        let old, done
+        let old, done, timer
         let i = 0
-        const msg = document.querySelector('div.msg')
+        const $msg = $('.msg')
         const gallery = document.querySelector('div.gallery')
 
         setTimeout(() => { playSound('welcome') }, 2000)
 
         marker.addEventListener('markerFound', () => {
+            if (timer) return
             timer = setInterval(() => {
                 marker.dispatchEvent(new Event('markerCheck'))
             }, 1000);
+            $markerStatus.addClass('found').removeClass('lost correct')
+            $crosshairs.attr('src', './assets/crosshairs.yellow.png')
         })
         marker.addEventListener('markerLost', () => {
             clearInterval(timer)
+            timer = false
             playSound('upperright')
+            $markerStatus.addClass('lost').removeClass('found correct')
+            $crosshairs.attr('src', './assets/crosshairs.red.png')
         })
 
         // capture distance:0, position and rotation
@@ -328,15 +387,36 @@
 
             console.log({ distance, rotation, position })
 
+            $msg.html(JSON.stringify(rotation))
+
             ensure.marker = { ...marker.object3D }
 
-            if (!photos.above.img) {
+            if (!photos.front.img) {
+                console.log('looking front')
+                playSound('front')
+                if (ensure.upperRightQuadrant() && rotation._y < 0) {
+                    photos.front = { position, rotation, img: snapPhoto() }
+                    playSound('good')
+                } else {
+                    if (!ensure.upperRightQuadrant()) playSound('upperright')
+                    else playSound('front')
+                }
+            } else if (!photos.above.img) {
                 console.log('looking above')
-                if (ensure.upperRightQuadrant()) {
+                if (ensure.upperRightQuadrant() && ensure.aboveRotation()) {
                     photos.above = { position, rotation, img: snapPhoto() }
                     playSound('good')
                 } else {
                     playSound('above')
+                }
+            } else if (!photos.back.img) {
+                console.log('looking back')
+                if (ensure.upperRightQuadrant() && ensure.backRotation()) {
+                    photos.back = { position, rotation, img: snapPhoto() }
+                    playSound('good')
+                } else {
+                    if (!ensure.upperRightQuadrant()) playSound('upperright')
+                    else playSound('back')
                 }
             } else if (!photos.left.img) {
                 console.log('looking left')
@@ -352,24 +432,6 @@
                 if (ensure.upperRightQuadrant() && ensure.rightRotation()) {
                     photos.right = { position, rotation, img: snapPhoto() }
                     playSound('good')
-                } else {
-                    if (!ensure.upperRightQuadrant()) playSound('upperright')
-                    else playSound('right')
-                }
-            } else if (!photos.front.img) {
-                console.log('looking front')
-                if (ensure.upperRightQuadrant() && ensure.frontRotation()) {
-                    photos.front = { position, rotation, img: snapPhoto() }
-                    playSound('good')
-                } else {
-                    if (!ensure.upperRightQuadrant()) playSound('upperright')
-                    else playSound('front')
-                }
-            } else if (!photos.back.img) {
-                console.log('looking back')
-                if (ensure.upperRightQuadrant() && ensure.backRotation()) {
-                    photos.back = { position, rotation, img: snapPhoto() }
-                    playSound('good')
 
                     setTimeout(() => {
                         playSound('done')
@@ -378,9 +440,10 @@
                         done = true
                     }, 2000)
 
+
                 } else {
                     if (!ensure.upperRightQuadrant()) playSound('upperright')
-                    else playSound('back')
+                    else playSound('right')
                 }
             }
 
