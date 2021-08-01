@@ -1,0 +1,61 @@
+div.controls {
+    position: fixed;
+    width: 50%;
+    z-index: 10;
+    background-color: white;
+    top: 25%;
+    left: 25%;
+    filter: drop-shadow(4px 4px 4px #888);
+    padding: 20px;
+}
+
+div.gallery {
+    height: 100px;
+    position: fixed;
+    z-index: 10;
+    top: 10px;
+    left: 10px;
+}
+
+canvas {
+    height: inherit;
+    border: 1px solid white;
+    margin: 2px;
+}
+
+button#start {
+    margin-top: 10px;
+    padding: 5px;
+    display: block;
+    text-align: center;
+}
+
+.centered {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    /* bring your own prefixes */
+    transform: translate(-50%, -50%);
+}
+
+.upper.right {
+    position: fixed;
+    top: 20%;
+    right: 10%;
+}
+
+.lower.right {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+}
+
+.msg {
+    color: white;
+}
+
+.marker.status {font-size: x-large; z-index: 20; text-shadow: 1px 1px black;}
+.marker.status div { display: none}
+.marker.status.lost div.lost {color:red; display:block}
+.marker.status.found div.found {color:gold; display:block}
+.marker.status.correct div.correct {color:green; display:block}

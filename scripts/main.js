@@ -15,3 +15,52 @@ const config = {
 }
 
 firebase.initializeApp(config.firebase);
+
+
+
+function torch (on) {
+    // turn the torch on
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+
+        const cameras = devices.filter((device) => device.kind === 'videoinput');
+        const camera = cameras[cameras.length - 1];
+
+        // Create stream and get video track
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                deviceId: camera.deviceId,
+                facingMode: ['user', 'environment'],
+                height: { ideal: 1080 },
+                width: { ideal: 1920 }
+            }
+        }).then(stream => {
+            const track = stream.getVideoTracks()[0];
+            track.applyConstraints({
+                advanced: [{ torch: on }]
+            }).catch(err => {
+                console.log(err)
+            });
+        });
+    });
+}
+
+torch(true)
+
+
+
+
+function snapPhoto () {
+    const webcamElement = document.querySelector('video#arjs-video')
+    const canvas = document.createElement('canvas')
+    const webcam = new Webcam(webcamElement, 'user', canvas);
+    const img = webcam.snap()
+    const gallery = document.querySelector('div.gallery')
+    gallery.appendChild(canvas)
+    const ctx = canvas.getContext("2d");
+    var image = new Image();
+    image.onload = function () {
+        ctx.drawImage(image, 0, 0);
+    };
+    image.src = img
+    return img
+}
