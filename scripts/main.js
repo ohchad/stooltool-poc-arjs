@@ -39,9 +39,11 @@ function torch (on) {
                 advanced: [{ torch: on }]
             }).catch(err => {
                 console.log(err)
-            });
-        });
-    });
+            })
+        }).catch(err => {
+            console.log(err)
+        })
+    })
 }
 
 torch(true)
