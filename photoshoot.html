@@ -62,10 +62,16 @@
     jQuery(function ($) {
 
         const config = {
-            pause: {
-                overlap: 5000,
-                default: 10_000,
-                upright: 20_000
+            marker: {
+                sample: 175,
+            },
+
+            proctor: {
+                pause: {
+                    overlap: 5000,
+                    default: 10_000,
+                    upright: 20_000
+                },
             },
 
             perspectives: ['front', 'above', 'back', 'left', 'right'],
@@ -79,51 +85,60 @@
                 right: { _x: 1.6, _y: 0, _z: -0.9, },
             },
 
-            notes: ['C2', 'E2', 'G2', 'C3', 'F3', 'C4', 'C5', 'E5', 'G5'], // 0-90%
+            /*
+                [].concat(... '12345'.split('').map( num => 'CDEFGAB'.split('').map(note=> note + num)))
+                ["C1", "D1", "E1", "F1", "G1", "A1", "B1", "C2", "D2", "E2", "F2", "G2", "A2", "B2", "C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5", "A5", "B5"]
+            */
+            beep: {
+                notes: [].concat(... '12345'.split('').map(num => 'CDEFGAB'.split('').map(note => note + num))), // returns [C1,C2,C3 ... G5,A5,B5]
+                seconds: 1,
+            },
+
+
         }
 
         class Speaker {
             constructor() {
                 this.oldSound = {}
+                this.Tone = new Tone.Volume(-20).toDestination();
             }
 
             pause() {
-                this.paused = true
-                clearInterval(this.timer)
-                this.timer = null
+                // TODO this.Tone.triggerRelase(config.notes)  // release all notes
                 return this
             }
 
             beep(data) {
                 data = data || {}
                 if (this.oldSound.note === data.note) return
-                this.Tone = new Tone.Volume(data.volume || -20).toDestination();
-                const synth = new Tone.MembraneSynth().connect(this.Tone)
-                this.paused = false
-                if (this.timer) clearInterval(this.timer)
-                synth.triggerAttackRelease(data.note || "C1", "8n");
-                // this.timer = setInterval(() => {
-                //     synth.triggerAttackRelease(data.note || "C1", "8n");
-                // }, data.interval || 1000);
+                const synth = new Tone.Synth().connect(this.Tone)
+                synth.triggerAttackRelease(data.note || "C1", data.seconds || "8n");
                 return this
+
             }
 
-            pulse(diff) {
+            pulse(diff, _seconds) {
+                const { notes, seconds } = config.beep
                 this.beep({
-                    note: config.notes[Math.floor(diff * 10)],
+                    note: notes[Math.floor(diff * notes.length)],
+                    seconds: _seconds || seconds || 1,
                     //volume: -20 * (1 - diff),
-                    interval: (1 - diff) * 1000
+                    //interval: (1 - diff) * 1000
                 })
             }
 
+
+            // Note:  Pause will not interrupt playing mp3s.  They're always allowed to complete
             play(name) {
                 if (name === 'done' && this.oldSound['old'] !== 'done') {
                     this.oldSound.player.stop()
                 }
 
+                const { pause } = config.proctor
+
                 const now = Date.now()
-                if (now - this.oldSound['old'] < config.pause.overlap) return  // don't overlap messages
-                if (now - this.oldSound[name] < (config.pause[name] || config.pause.default)) return // don't repeat the same message more than once every 10 seconds
+                if (now - this.oldSound['old'] < pause.overlap) return  // don't overlap messages
+                if (now - this.oldSound[name] < (pause[name] || pause.default)) return // don't repeat the same message more than once every 10 seconds
                 this.oldSound['old'] = this.oldSound[name] = now
                 const player = new Tone.Player(`./assets/${name}.mp3`).toDestination()
                 Tone.loaded().then(() => {
@@ -164,6 +179,7 @@
             front: { position: { ...zeros }, rotation: { ...zeros }, img: null },
             back: { position: { ...zeros }, rotation: { ...zeros }, img: null },
         }
+
 
 
         function sameSign(a, b) {
@@ -257,7 +273,7 @@
                 if (timer) return
                 timer = setInterval(() => {
                     marker.dispatchEvent(new Event('markerCheck'))
-                }, 200);
+                }, config.marker.sample || 200);
                 $markerStatus.addClass('found').removeClass('lost correct')
                 $crosshairs.attr('src', './assets/crosshairs.yellow.png')
             })
@@ -279,12 +295,7 @@
                 distance = camera.object3D.position.distanceTo(position)
 
                 //console.log({ distance, rotation, position })
-
-                $msg.html(JSON.stringify(rotation))
                 ensure.marker = { ...marker.object3D }
-
-                const diff = maxDiff(config.targets.front, rotation)
-                console.log({ diff: diff })
 
                 /*
                 front: { _x: 0.7, _y: 0, _z: 0, },
@@ -309,6 +320,19 @@
                     const target = config.targets[name]
                     const tolerance = config.targets.tolerance
 
+                    function pErr(a, b, digits) {
+                        const factor = Math.pow(10, digits || config.digits || 2)
+                        return Math.floor((Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b))) * factor) / factor
+                    }
+
+                    const delta = {
+                        roll: pErr(target._z, rotation._z),
+                        pitch: pErr(target._x, rotation._x),
+                        yaw: pErr(target._y, rotation._y),
+                    }
+
+                    $msg.html(`roll: ${delta.roll} pitch: ${delta.pitch} yaw: ${delta.yaw}`)
+
                     const diff = maxDiff(target, rotation)
                     theSpeaker.pulse(diff)
 
@@ -324,12 +348,13 @@
                     done = true
 
                     $('.crosshairs,.status,.msg').fadeOut()
+                    theSpeaker.pause();
 
                     setTimeout(() => {
                         theSpeaker.play('done')
                         console.log('done')
 
-                        $('.msg').html('Thank you.  Refresh the page to repeat.')
+                        $('.msg').html('Thank you.  Refresh the page to repeat.').slideDown()
 
                         setTimeout(() => {
                             torch(false)
@@ -346,8 +371,8 @@
 
         $('button#start').click(function () {
             $('.controls').slideUp()
-            theSpeaker.play('welcome')
-            load()
+            theSpeaker.play('welcome') // tutorial plays for 10 seconds
+            setTimeout(load, 5_000)
         })
 
     })
