@@ -12,20 +12,22 @@
     <script defer src="./scripts/material.design.lite.js"></script>
     <script defer src='./scripts/tone.js'></script>
 
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+
 </head>
 
 
 <body style="margin : 0px; overflow: hidden;">
 
-    <div class="controls">
+    <div class="controls mdl-card">
         <h2>Welcome</h2>
         Please enable the camera and your speaker and prepare your diaper to be photographed with the stool tool marker
         in the upper right hand corner of the frame.
 
         <button id="start"
-            class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent send">
-            Start
-        </button>
+            class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent send">Start</button>
 
     </div>
 
@@ -42,7 +44,12 @@
             Good. Hold steady.
         </div>
     </div>
+    <div class="msgs"></div>
     <div class='lower right msg'></div>
+    <button
+        class="lower left reset z20 mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent">
+        start over
+    </button>
 
 
 
@@ -90,8 +97,8 @@
                 ["C1", "D1", "E1", "F1", "G1", "A1", "B1", "C2", "D2", "E2", "F2", "G2", "A2", "B2", "C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5", "A5", "B5"]
             */
             beep: {
-                notes: [].concat(... '012345'.split('').map(num => 'CDEFGAB'.split('').map(note => note + num))), // returns [C1,C2,C3 ... G5,A5,B5]
-                seconds: 1,
+                notes: [].concat(... '001123456'.split('').map(num => 'CDEFGAB'.split('').map(note => note + num))), // returns [C1,D1,E1 ... G5,A5,B5]
+                seconds: 2,
             },
 
 
@@ -100,7 +107,20 @@
         class Speaker {
             constructor() {
                 this.oldSound = {}
-                this.Tone = new Tone.Volume(-20).toDestination();
+                //this.Tone = new Tone.Volume(-20).toDestination();
+                this.sampler = new Tone.Sampler({
+                    urls: {
+                        A0: "A0.mp3",
+                        A1: "A1.mp3",
+                        A2: "A2.mp3",
+                        A3: "A3.mp3",
+                        A4: "A4.mp3",
+                        A5: "A5.mp3",
+                        A6: "A6.mp3",
+                    },
+                    release: config.seconds,
+                    baseUrl: "./assets/"
+                }).toDestination();
             }
 
             pause() {
@@ -111,8 +131,7 @@
             beep(data) {
                 data = data || {}
                 if (this.oldSound.note === data.note) return
-                const synth = new Tone.Synth().connect(this.Tone)
-                synth.triggerAttackRelease(data.note || "C1", data.seconds || "8n");
+                this.sampler.triggerAttack(data.note || "C1");
                 return this
 
             }
@@ -180,45 +199,60 @@
             back: { position: { ...zeros }, rotation: { ...zeros }, img: null },
         }
 
+        function average(array) {
+            if (!array || !array.length) return 0
+            return array.reduce((a, b) => a + b) / array.length;
+        }
 
+        let filterData = []
+        function filter(x) {
+            filterData.push(x)
+            if (filterData.length > 3) filterData.shift()
+            return average(filterData)
+        }
+
+        function min(array) {
+            if (!array || !array.length) return 0
+            return array.reduce((a, b) => a < b ? a : b)
+        }
+
+        const pi = 3.1416
+        function pCorrect(target, marker) {
+            const ratio = (pi - Math.abs(target - marker)) / pi
+            return ratio
+
+        }
 
         function sameSign(target, marker) {
             return target === 0 || (target < 0 && marker < 0) || (target > 0 && marker > 0)
         }
 
         function sameQuad(target, marker) {
-            target = { ...{ _x: 0, _y: 0, _z: 0 }, ...target }
-            marker = { ...{ _x: 0, _y: 0, _z: 0 }, ...marker }
-
             return sameSign(target._x, marker._x)
                 && sameSign(target._y, marker._y)
                 && sameSign(target._z, marker._z)
         }
 
-        function maxDiff(a, b) {
-            let max = 0
+        function minDiff(target, marker) {
+            let ratios = []
 
-            function compareMax(alpha, beta) {
-                alpha = alpha < 0 ? -alpha : alpha
-                beta = beta < 0 ? -beta : beta
-                let ratio = Math.abs(alpha < beta ? alpha / beta : beta / alpha)
-                if (ratio < 1 && max < ratio) max = ratio
+            function calc(target, marker) {
+                let ratio = pCorrect(target, marker)
+                if (ratio < 1 && ratio > 0) ratios.push(ratio)
             }
 
-            compareMax(a.x, b.x)
-            compareMax(a.y, b.y)
-            compareMax(a.z, b.z)
-            compareMax(a._x, b._x)
-            compareMax(a._y, b._y)
-            compareMax(a._z, b._z)
+            calc(target._x, marker._x)
+            calc(target._y, marker._y)
+            calc(target._z, marker._z)
 
-            return max
+            return min(ratios)
         }
 
 
 
-        const $markerStatus = $('.marker.status')
-        const $crosshairs = $('img.crosshairs')
+        const $markerStatus = $('.marker.status').hide()
+        const $crosshairs = $('img.crosshairs').hide()
+        const $reset = $('button.reset').hide()
 
 
         // a singleton to improve readability
@@ -260,17 +294,28 @@
         function load() {
             const camera = document.querySelector('[camera]');
             const marker = document.querySelector('a-marker');
+
             let rotation = { ...marker.object3D.rotation }
             let position = { ...marker.object3D.position }
             let distance = camera.object3D.position.distanceTo(position)
             let old, done, timer
             let i = 0
             const $msg = $('.msg')
-            const gallery = document.querySelector('div.gallery')
+            const $msgs = $('.msgs')
+
+            $reset.slideDown().click(function () { window.location.reload() })
+            $crosshairs.fadeIn()
+            $markerStatus.show()
+
 
             marker.addEventListener('markerFound', () => {
                 if (done) return
-                if (timer) return
+                if (timer) {
+                    timer = false
+                    clearInterval(timer)
+                }
+
+                marker.dispatchEvent(new Event('markerCheck'))
                 timer = setInterval(() => {
                     marker.dispatchEvent(new Event('markerCheck'))
                 }, config.marker.sample || 200);
@@ -319,13 +364,7 @@
 
                     const target = config.targets[name]
                     const tolerance = config.targets.tolerance
-                    const factor = Math.pow(10, config.digits || 2)
-
-                    function pCorrect(alpha, beta) {
-                        alpha = alpha < 0 ? -alpha : alpha
-                        beta = beta < 0 ? -beta : beta
-                        return Math.floor(Math.abs(alpha < beta ? alpha / beta : beta / alpha) * factor) / factor
-                    }
+                    const factor = Math.pow(10, config.digits || 4)
 
                     const delta = {
                         roll: pCorrect(target._z, rotation._z),
@@ -333,16 +372,27 @@
                         yaw: pCorrect(target._y, rotation._y),
                     }
 
-
-                    const diff = Math.floor(maxDiff(target, rotation) * factor) / factor
-                    theSpeaker.pulse(diff)
-
-                    $msg.html(`diff: ${diff} roll: ${delta.roll} pitch: ${delta.pitch} yaw: ${delta.yaw}`)
+                    function fmt(x) {
+                        return `${100 * Math.floor(x * factor) / factor}%`.padStart(5, ' ')
+                    }
 
 
-                    if (!sameQuad(target, rotation)) return
+                    const diff = Math.floor(minDiff(target, rotation) * factor) / factor
+                    const filtered = filter(diff)
+                    const msg = `${name} filtered: ${fmt(filtered)} min: ${fmt(diff)} roll: ${fmt(delta.roll)} pitch: ${fmt(delta.pitch)} yaw: ${fmt(delta.yaw)}`
 
-                    if (diff >= tolerance) {
+                    $msg.html(msg)
+
+                    theSpeaker.pulse(filtered)
+
+                    if (!sameQuad(target, rotation)) {
+                        filterData = []
+                        return
+                    }
+
+                    if (filtered >= tolerance) {
+                        filterData = []
+                        $msgs.append($('<div>', { html: msg }))
                         photos[name] = { position, rotation, img: snapPhoto() }
                         theSpeaker.play('good')
                         return
@@ -352,13 +402,14 @@
                     done = true
 
                     $('.crosshairs,.status,.msg').fadeOut()
+                    $('button.reset').slideDown()
+
+
                     theSpeaker.pause();
 
                     setTimeout(() => {
                         theSpeaker.play('done')
                         console.log('done')
-
-                        $('.msg').html('Thank you.  Refresh the page to repeat.').slideDown()
 
                         setTimeout(() => {
                             torch(false)
@@ -376,7 +427,7 @@
         $('button#start').click(function () {
             $('.controls').slideUp()
             theSpeaker.play('welcome') // tutorial plays for 10 seconds
-            setTimeout(load, 5_000)
+            setTimeout(load, 2_000)
         })
 
     })

@@ -1,3 +1,5 @@
+
+
 div.controls {
     position: fixed;
     width: 50%;
@@ -25,7 +27,6 @@ canvas {
 
 button#start {
     margin-top: 10px;
-    padding: 5px;
     display: block;
     text-align: center;
 }
@@ -50,8 +51,25 @@ button#start {
     right: 10px;
 }
 
-.msg {
+.msgs {
+    bottom: 40px;
+    position: fixed;
+    right: 10px;
+}
+
+.lower.left {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+}
+
+.z20 { z-index: 20}
+
+.msg, .msgs {
+    text-align: right;
+    font-family:monospace;
     color: white;
+    text-shadow: 1px 1px black;
 }
 
 .marker.status {font-size: x-large; z-index: 20; text-shadow: 1px 1px black;}
