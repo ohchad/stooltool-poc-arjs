@@ -92,7 +92,8 @@
 
         const config = {
             marker: {
-                sample: 175,
+                sample: 100,
+                filter: 5,
             },
 
             proctor: {
@@ -112,7 +113,7 @@
             perspectives: ['front', 'above', 'back', 'left', 'right'],
 
             targets: {
-                tolerance: 0.75,
+                tolerance: 0.8,
                 front: { _x: 0.7, _y: 0, _z: 0, },
                 above: { _x: 1.6, _y: 0, _z: 0 }, // above is +0.9 rads from front and back is another +0.9 rads
                 back: { _x: 2.5, _y: 0, _z: 0, },
@@ -231,7 +232,6 @@
         */
 
         const zeros = { x: 0, y: 0, z: 0 }
-        const tolerance = 1.2 // values should be within 20%
 
         const photos = {
             above: { position: { ...zeros }, rotation: { ...zeros }, img: null },
@@ -249,7 +249,7 @@
         let filterData = [0, 0, 0]
         function filter(x) {
             filterData.push(x)
-            if (filterData.length > 10) filterData.shift()
+            if (filterData.length > config.marker.filter || 5) filterData.shift()
             return average(filterData)
         }
 
