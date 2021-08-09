@@ -1,6 +1,6 @@
+.hide {display:none;}
 
-
-div.controls {
+div.controls, div.volume-controls {
     position: fixed;
     width: 50%;
     z-index: 10;
@@ -9,6 +9,10 @@ div.controls {
     left: 25%;
     filter: drop-shadow(4px 4px 4px #888);
     padding: 20px;
+}
+
+div.volume-controls {
+    z-index: 12;
 }
 
 div.gallery {
@@ -42,7 +46,7 @@ button#start {
 .upper.right {
     position: fixed;
     top: 20%;
-    right: 10%;
+    right: 10px;
 }
 
 .lower.right {
@@ -72,7 +76,7 @@ button#start {
     text-shadow: 1px 1px black;
 }
 
-.marker.status {font-size: x-large; z-index: 20; text-shadow: 1px 1px black;}
+.marker.status {font-size: x-large; z-index: 20; text-shadow: 1px 1px black; text-align: right;}
 .marker.status div { display: none}
 .marker.status.lost div.lost {color:red; display:block}
 .marker.status.found div.found {color:gold; display:block}

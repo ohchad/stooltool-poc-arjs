@@ -31,6 +31,23 @@
 
     </div>
 
+    <div class='mdl-card volume-controls hide'>
+        <div class="mdl-card__menu">
+            <button class="mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect close">
+                <i class="material-icons">close</i>
+            </button>
+        </div>
+        <label>
+            <h3>piano</h3>
+            <input class="mdl-slider mdl-js-slider beep volume slider" type="range" min="0" max="100" value="0" />
+        </label>
+        <label>
+            <h3>voice</h3>
+            <input class="mdl-slider mdl-js-slider voice volume slider" type="range" min="0" max="100" value="0" />
+        </label>
+
+    </div>
+
     <div class='gallery'></div>
     <div class='centered'><img class='crosshairs' src='./assets/crosshairs.red.png' /></div>
     <div class="upper right marker status">
@@ -41,15 +58,20 @@
             please ensure the marker<br> is in the upper right corner
         </div>
         <div class=" correct">
-            Good. Hold steady.
+            Good. I see the marker here.
         </div>
     </div>
     <div class="msgs"></div>
     <div class='lower right msg'></div>
-    <button
-        class="lower left reset z20 mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent">
-        start over
-    </button>
+    <div class="lower left z20">
+        <button class="mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect settings">
+            <i class="material-icons">settings</i>
+        </button>
+        <button class=" reset mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent">
+            start over
+        </button>
+    </div>
+
 
 
 
@@ -81,15 +103,21 @@
                 },
             },
 
+            volume: {
+                default: -20,
+                min: -30,
+                max: 10,
+            },
+
             perspectives: ['front', 'above', 'back', 'left', 'right'],
 
             targets: {
-                tolerance: 0.9,
+                tolerance: 0.75,
                 front: { _x: 0.7, _y: 0, _z: 0, },
                 above: { _x: 1.6, _y: 0, _z: 0 }, // above is +0.9 rads from front and back is another +0.9 rads
                 back: { _x: 2.5, _y: 0, _z: 0, },
-                left: { _x: 1.6, _y: 0, _z: 0.9, }, // left and right are 1.8 rads apart
-                right: { _x: 1.6, _y: 0, _z: -0.9, },
+                left: { _x: 1.6, _y: 0, _z: -0.9, }, // left and right are 1.8 rads apart
+                right: { _x: 1.6, _y: 0, _z: 0.9, },
             },
 
             /*
@@ -97,7 +125,7 @@
                 ["C1", "D1", "E1", "F1", "G1", "A1", "B1", "C2", "D2", "E2", "F2", "G2", "A2", "B2", "C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5", "A5", "B5"]
             */
             beep: {
-                notes: [].concat(... '001123456'.split('').map(num => 'CDEFGAB'.split('').map(note => note + num))), // returns [C1,D1,E1 ... G5,A5,B5]
+                notes: [].concat(... '123456'.split('').map(num => 'CDEFGAB'.split('').map(note => note + num))), // returns [C1,D1,E1 ... G5,A5,B5]
                 seconds: 2,
             },
 
@@ -107,7 +135,20 @@
         class Speaker {
             constructor() {
                 this.oldSound = {}
-                //this.Tone = new Tone.Volume(-20).toDestination();
+                this.setBeepVolume()
+                this.setVoiceVolume()
+            }
+
+            pause() {
+                // TODO this.Tone.triggerRelase(config.notes)  // release all notes
+                return this
+            }
+
+            setBeepVolume(v) {
+                v = v || localStorage.getItem('beep.volume') || config.volume.default || -20
+                this.beepVolume = new Tone.Volume(v).toDestination()  // -30 ... 10
+
+                // TODO How do we avoid reloading the sample everytime we want to change volume?
                 this.sampler = new Tone.Sampler({
                     urls: {
                         A0: "A0.mp3",
@@ -120,12 +161,7 @@
                     },
                     release: config.seconds,
                     baseUrl: "./assets/"
-                }).toDestination();
-            }
-
-            pause() {
-                // TODO this.Tone.triggerRelase(config.notes)  // release all notes
-                return this
+                }).connect(this.beepVolume)
             }
 
             beep(data) {
@@ -147,6 +183,12 @@
             }
 
 
+            setVoiceVolume(v) {
+                v = v || localStorage.getItem('voice.volume') || config.volume.default || -20
+                localStorage.setItem('voice.volume', v)
+                this.voiceVolume = new Tone.Volume(v).toDestination()  // -30 ... 10
+            }
+
             // Note:  Pause will not interrupt playing mp3s.  They're always allowed to complete
             play(name) {
                 if (name === 'done' && this.oldSound['old'] !== 'done') {
@@ -159,7 +201,7 @@
                 if (now - this.oldSound['old'] < pause.overlap) return  // don't overlap messages
                 if (now - this.oldSound[name] < (pause[name] || pause.default)) return // don't repeat the same message more than once every 10 seconds
                 this.oldSound['old'] = this.oldSound[name] = now
-                const player = new Tone.Player(`./assets/${name}.mp3`).toDestination()
+                const player = new Tone.Player(`./assets/${name}.mp3`).connect(this.voiceVolume)
                 Tone.loaded().then(() => {
                     player.start();
                     this.oldSound.player = player
@@ -201,13 +243,13 @@
 
         function average(array) {
             if (!array || !array.length) return 0
-            return array.reduce((a, b) => a + b) / array.length;
+            return array.reduce((sum, val) => sum + val) / array.length;
         }
 
-        let filterData = []
+        let filterData = [0, 0, 0]
         function filter(x) {
             filterData.push(x)
-            if (filterData.length > 3) filterData.shift()
+            if (filterData.length > 10) filterData.shift()
             return average(filterData)
         }
 
@@ -220,7 +262,6 @@
         function pCorrect(target, marker) {
             const ratio = (pi - Math.abs(target - marker)) / pi
             return ratio
-
         }
 
         function sameSign(target, marker) {
@@ -249,10 +290,34 @@
         }
 
 
+        const $beepVolumeSlider = $('.beep.volume.slider')
+            .attr('min', config.volume.min).attr('max', config.volume.max).attr('value', localStorage.getItem('beep.volume') || config.volume.default)
+            .change(function () {
+                const v = $beepVolumeSlider.val()
+                localStorage.setItem('beep.volume', v)
+                theSpeaker.setBeepVolume(v)
+            })
+
+        const $voiceVolumeSlider = $('.voice.volume.slider')
+            .attr('min', config.volume.min).attr('max', config.volume.max).attr('value', localStorage.getItem('voice.volume') || config.volume.default)
+            .change(function () {
+                const v = $voiceVolumeSlider.val()
+                localStorage.setItem('voice.volume', v)
+                theSpeaker.setVoiceVolume(v)
+            })
 
         const $markerStatus = $('.marker.status').hide()
         const $crosshairs = $('img.crosshairs').hide()
         const $reset = $('button.reset').hide()
+        const $vControls = $('div.volume-controls').hide()
+
+        $('div.volume-controls .close').click(function () {
+            $vControls.slideUp()
+        })
+
+        $('button.settings').click(function () {
+            $vControls.slideDown()
+        })
 
 
         // a singleton to improve readability
@@ -386,12 +451,12 @@
                     theSpeaker.pulse(filtered)
 
                     if (!sameQuad(target, rotation)) {
-                        filterData = []
+                        filterData = [0, 0, 0]
                         return
                     }
 
                     if (filtered >= tolerance) {
-                        filterData = []
+                        filterData = [0, 0, 0]
                         $msgs.append($('<div>', { html: msg }))
                         photos[name] = { position, rotation, img: snapPhoto() }
                         theSpeaker.play('good')
