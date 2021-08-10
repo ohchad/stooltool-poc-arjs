@@ -64,11 +64,7 @@ button#start {
     right: 10px;
 }
 
-.msgs {
-    bottom: 40px;
-    position: fixed;
-    right: 10px;
-}
+
 
 .lower.left {
     position: fixed;
@@ -83,6 +79,29 @@ button#start {
     font-family:monospace;
     color: white;
     text-shadow: 1px 1px black;
+}
+
+.msg {
+    position: fixed;
+    right: 10px;
+    bottom: 50px;
+}
+
+.msgs {
+    bottom: 70px;
+    position: fixed;
+    right: 10px;
+}
+
+.settings {
+    color:black;
+    text-shadow: 1px 1px white;
+}
+
+.output {
+    color: grey;
+    font-size: small;
+    display:inline;
 }
 
 .marker.status {font-size: x-large; z-index: 20; text-shadow: 1px 1px black; text-align: right;}
