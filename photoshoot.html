@@ -88,12 +88,17 @@
 
 
 
+
     <a-scene vr-mode-ui="enabled: false;" renderer="logarithmicDepthBuffer: true;" embedded
         arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
         <a-entity camera></a-entity>
 
         <!-- create a new marker https://jeromeetienne.github.io/AR.js/three.js/examples/marker-training/examples/generator.html -->
-        <a-marker preset='custom' type='pattern' url='./assets/stool.tools.marker.patt' />
+        <a-marker preset='custom' type='pattern' url='./assets/stool.tools.marker.patt'>
+            <a-image class="red cursor" rotation="-90 0 0" src="./assets/red.x.png"></a-image>
+            <a-image class="green cursor" rotation="-90 0 0" src="./assets/good.green.png"></a-image>
+        </a-marker>
+
 
     </a-scene>
 
@@ -350,6 +355,18 @@
         }, 0)
 
 
+        function updateCursor() {
+            const marker = document.querySelector('a-marker');
+            let pos = { ...marker.object3D.position }
+
+            if (pos.x > 0 && pos.y > 0) {
+                $('.red.cursor')[0].object3D.visible = false
+                $('.green.cursor')[0].object3D.visible = true
+            } else {
+                $('.green.cursor')[0].object3D.visible = false
+                $('.red.cursor')[0].object3D.visible = true
+            }
+        }
 
         const $markerStatus = $('.marker.status').hide()
         const $crosshairs = $('img.crosshairs').hide()
@@ -439,6 +456,8 @@
                 theSpeaker.play('upright')
                 $markerStatus.addClass('lost').removeClass('found correct')
                 $crosshairs.attr('src', './assets/crosshairs.red.png')
+                $cursorCheckmark.hide()
+                $cursorArrow.hide()
             })
 
 
@@ -448,6 +467,9 @@
                 rotation = { ...marker.object3D.rotation }
                 position = { ...marker.object3D.position }
                 distance = camera.object3D.position.distanceTo(position)
+
+                updateCursor()
+
 
                 //console.log({ distance, rotation, position })
                 ensure.marker = { ...marker.object3D }
@@ -513,7 +535,6 @@
 
                     $('.crosshairs,.status,.msg').fadeOut()
                     $('button.reset').slideDown()
-
 
                     theSpeaker.pause();
 

@@ -109,3 +109,4 @@ button#start {
 .marker.status.lost div.lost {color:red; display:block}
 .marker.status.found div.found {color:gold; display:block}
 .marker.status.correct div.correct {color:green; display:block}
+
